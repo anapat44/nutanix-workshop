@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Lab Access Information</title>
+    <style>
+        /* สไตล์เดิมที่คุณชอบ (Theme ม่วง-ขาว) */
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h1 { text-align: center; color: #333; font-size: 24px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input[type="text"] { width: calc(100% - 22px); padding: 10px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        
+        button.search-btn { 
+            background-color: #7700ff; color: white; padding: 12px 15px; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%;
+            transition: background-color 0.3s ease; font-weight: bold;
+        }
+        button.search-btn:hover { background-color: #4b2cbb; }
+        
+        #results { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
+        .section-title { 
+            background-color: #24014d; color: white; padding: 8px 12px; 
+            border-radius: 4px; margin: 20px 0 10px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        .info-row {
+            margin: 8px 0; display: flex; justify-content: space-between; align-items: center;
+            gap: 10px; border-bottom: 1px solid #eee; padding-bottom: 8px;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-weight: bold; color: #555; font-size: 13px; min-width: 120px; }
+        .info-value { flex-grow: 1; word-break: break-all; font-family: monospace; color: #333; font-size: 14px; background: #fff; padding: 2px 5px; border-radius: 2px; }
+        
+        .copy-btn {
+            background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 11px; padding: 5px 8px; min-width: 65px;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover { background-color: #7700ff; }
+        .copy-btn.copied { background-color: #01d73a; }
+
+        .loading { text-align: center; font-style: italic; color: #666; padding: 20px; }
+        .error { color: #dc3545; font-weight: bold; text-align: center; padding: 20px; }
+        .user-found { color: #7700ff; font-weight: bold; font-size: 1.2em; border-bottom: 2px solid #7700ff; padding-bottom: 5px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Find Lab Access Information</h1>
+    <label for="nameInput">Enter User Name:</label>
+    <input type="text" id="nameInput" placeholder="e.g., user01" autocomplete="off">
+    <button class="search-btn" onclick="fetchInfo()">Search</button>
+
+    <div id="results" style="display: none;">
+        </div>
+</div>
+
+<script>
+    // !! อย่าลืมตรวจสอบว่า URL นี้ลงท้ายด้วย /exec และเป็นอันล่าสุดที่ Deploy !!
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw8zcEe44n1LPhW9vaqqL6X1QEBP0CVLWdwXDBOaYg8uJTZ3HbfEk57X0fhbUZG4xuL/exec';
+
+    async function fetchInfo() {
+        const resultsDiv = document.getElementById('results');
+        const nameInput = document.getElementById('nameInput');
+        const name = nameInput.value.trim();
+
+        if (!name) {
+            alert("Please enter a name to search.");
+            return;
+        }
+
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '<p class="loading">Searching for information...</p>';
+
+        try {
+            // ส่ง Parameter ไปที่ Google Apps Script
+            const response = await fetch(`${WEB_APP_URL}?name=${encodeURIComponent(name)}`);
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                const d = data.data;
+                
+                // เริ่มสร้าง HTML สำหรับแสดงผล
+                let html = `<div class="user-found">Information Found: ${escapeHtml(d["Name"])}</div>`;
+
+                // Section 1: VDI Access
+                html += createSection("VDI Access", [
+                    { label: "VDI Link", value: d["VDI Link"] },
+                    { label: "VDI User", value: d["VDI User"] },
+                    { label: "VDI Password", value: d["VDI Password"] }
+                ]);
+
+                // Section 2: NAI Access
+                html += createSection("NAI Access", [
+                    { label: "NAI URL", value: d["NAI URL"] },
+                    { label: "NAI User", value: d["NAI User"] },
+                    { label: "NAI Password", value: d["NAI Password"] }
+                ]);
+
+                // Section 3: Flowise Access
+                html += createSection("Flowise Access", [
+                    { label: "Flowise URL", value: d["Flowise URL"] },
+                    { label: "BasePath", value: d["BasePath"] }
+                ]);
+
+                // Section 4: NUS Object Access
+                html += createSection("NUS Object Access", [
+                    { label: "Objects Browser", value: d["Objects Browser"] },
+                    { label: "Access Key", value: d["Access Key"] },
+                    { label: "Secret Key", value: d["Secret Key"] },
+                    { label: "Bucket", value: d["Bucket"] },
+                    { label: "Server URL", value: d["Server URL"] }
+                ]);
+
+                // Section 5: Milvus Database
+                html += createSection("Milvus Vector Database Access", [
+                    { label: "Milvus Server URL", value: d["Milvus Server URL"] },
+                    { label: "Milvus Attu UI", value: d["Milvus Attu UI"] }
+                ]);
+
+                resultsDiv.innerHTML = html;
+            } else {
+                // กรณีหาไม่เจอ ให้แสดงข้อความ Error จาก Server
+                resultsDiv.innerHTML = `<p class="error">${data.message || 'No information found for this name.'}</p>`;
+            }
+        } catch (error) {
+            console.error(error);
+            resultsDiv.innerHTML = `<p class="error">Error: ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้ โปรดตรวจสอบ URL หรืออินเทอร์เน็ต</p>`;
+        }
+    }
+
+    // ฟังก์ชันช่วยสร้าง Section (เพื่อลดความซ้ำซ้อนของ Code)
+    function createSection(title, fields) {
+        let sectionHtml = `<div class="section-title">${title}</div>`;
+        let hasFields = false;
+
+        fields.forEach(field => {
+            // ถ้ามีหัวข้อนี้ใน Data
+            const val = field.value;
+            const displayVal = (val !== undefined && val !== "") ? val : "N/A";
+            const isCopyable = (val !== undefined && val !== "");
+
+            sectionHtml += `
+                <div class="info-row">
+                    <div class="info-label">${field.label}</div>
+                    <div class="info-value">${escapeHtml(String(displayVal))}</div>
+                    ${isCopyable ? `<button class="copy-btn" onclick="copyText(this, '${escapeJs(String(val))}')">Copy</button>` : ''}
+                </div>`;
+            hasFields = true;
+        });
+        
+        return hasFields ? sectionHtml : "";
+    }
+
+    // ฟังก์ชัน Copy ข้อความ
+    async function copyText(btn, text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            const originalText = btn.textContent;
+            btn.textContent = "Copied!";
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.classList.remove('copied');
+            }, 1500);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+        }
+    }
+
+    // ฟังก์ชันป้องกัน XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ฟังก์ชันป้องกันตัวอักษรพิเศษใน JavaScript
+    function escapeJs(text) {
+        return text.replace(/'/g, "\\'").replace(/"/g, "\\\"");
+    }
+
+    // กด Enter ในช่อง Input เพื่อ Search ได้เลย
+    document.getElementById('nameInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') fetchInfo();
+    });
+</script>
+
+</body>
+</html>
